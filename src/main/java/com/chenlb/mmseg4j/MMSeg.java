@@ -53,7 +53,7 @@ public class MMSeg {
 	}
 
 	
-	public Word next() throws IOException {
+	public Word next1() throws IOException {
 		//先从缓存中取
 		Word word = bufWord.poll();;
 		if(word == null) {
@@ -171,6 +171,43 @@ public class MMSeg {
 					//其它认为无效字符
 					read = true;
 				}//switch
+			}
+				
+			// 中文分词
+			if(currentSentence != null) {
+				do {
+					Chunk chunk = seg.seg(currentSentence);
+					for(int i=0; i<chunk.getCount(); i++) {
+						bufWord.add(chunk.getWords()[i]);
+					}
+				} while (!currentSentence.isFinish());
+				
+				currentSentence = null;
+			}
+			
+			word = bufWord.poll();
+		}
+		
+		return word;
+	}
+	/**
+	 * 按字符单个分词，不过滤特殊字符，标点符合等
+	 * @return
+	 * @throws IOException
+	 */
+	public Word next() throws IOException {
+		//先从缓存中取
+		Word word = bufWord.poll();;
+		if(word == null) {
+			bufSentence.setLength(0);
+
+			int data = -1;
+			boolean read = true;
+			while(read && (data=readNext()) != -1) {
+				String wordType  = Word.TYPE_LETTER;
+				bufSentence.appendCodePoint(data);
+				bufWord.add(createWord(bufSentence, wordType));
+				bufSentence.setLength(0);
 			}
 				
 			// 中文分词
