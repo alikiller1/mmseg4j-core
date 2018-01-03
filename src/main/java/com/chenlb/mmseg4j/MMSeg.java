@@ -224,6 +224,58 @@ public class MMSeg {
 		return word;
 	}
 	/**
+	 * 按字符单个分词，过滤特殊字符、标点符号、空格等，支持同义词
+	 * @return
+	 * @throws IOException
+	 */
+	public Word next3()throws IOException{
+			//先从缓存中取
+			Word word = bufWord.poll();;
+			if(word == null) {
+				bufSentence.setLength(0);
+
+				int data = -1;
+				boolean read = true;
+				while(read && (data=readNext()) != -1) {
+					char temp=(char) data;
+					String reg="\\pP|\\pS|\\pZ";
+					String s=String.valueOf(temp);
+					if(s.matches(reg)){
+						continue;
+					}
+					String reg2="[a-z]|[A-Z]|[0-9]";
+					if(s.matches(reg2)){
+						String wordType  = Word.TYPE_LETTER;
+						bufSentence.appendCodePoint(data);
+						bufWord.add(createWord(bufSentence, wordType));
+						bufSentence.setLength(0);
+					}else{
+						bufSentence.appendCodePoint(data);
+						readChars(bufSentence, new ReadCharByType(Character.OTHER_LETTER));
+
+						currentSentence = createSentence(bufSentence);
+
+						bufSentence.setLength(0);
+						// 中文分词
+						if(currentSentence != null) {
+							do {
+								Chunk chunk = seg.seg(currentSentence);
+								for(int i=0; i<chunk.getCount(); i++) {
+									bufWord.add(chunk.getWords()[i]);
+								}
+							} while (!currentSentence.isFinish());
+							
+							currentSentence = null;
+						}
+					}
+				}
+				
+				word = bufWord.poll();
+			}
+			
+			return word;
+	}
+	/**
 	 * 按字符单个分词，不过滤特殊字符、标点符号、空格等
 	 * @return
 	 * @throws IOException
